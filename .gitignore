@@ -1,0 +1,12 @@
+target
+.idea
+.settings
+.vscode
+enwiki
+index
+nbactions.xml
+.classpath
+.project
+esa.iml
+dream1.txt
+dream2.txt
