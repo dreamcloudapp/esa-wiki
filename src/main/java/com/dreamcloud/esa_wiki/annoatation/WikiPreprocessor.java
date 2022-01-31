@@ -139,12 +139,12 @@ public class WikiPreprocessor extends XmlWritingHandler {
             return;
         }
 
-        matcher = stubPattern.matcher(text);
+        /**matcher = stubPattern.matcher(text);
         if (matcher.find() || text.contains("stub}}")) {
             this.numStubs++;
             this.docsStripped++;
             return;
-        }
+        }*/
 
         try {
             /*text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?

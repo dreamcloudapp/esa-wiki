@@ -132,11 +132,6 @@ public class Main {
             scoreWriterOptions.setVectorizationOptions(vectorOptions);
             scoreWriterOptions.setAnnotationOptions(annotationOptions);
 
-            TfIdfStrategyFactory tfIdfFactory = new TfIdfStrategyFactory();
-            TfIdfStrategy tfIdfStrategy = tfIdfFactory.getStrategy(tfIdfOptions);
-            TfIdfAnalyzer tfIdfAnalyzer = new TfIdfAnalyzer(tfIdfStrategy, new EsaAnalyzer(analyzerOptions), fileSystemScoringReader.getCollectionInfo());
-            scoreWriterOptions.setAnalyzer(tfIdfAnalyzer);
-
 
             String[] wikiPreprocessorArgs = cli.getOptionValues("preprocess");
             String[] findArticleArgs = cli.getOptionValues("find-article");
@@ -246,21 +241,22 @@ public class Main {
             //Indexing
             else if(cli.hasOption("index")) {
                 System.out.println("Indexing...");
-                indexFile(new File(cli.getOptionValue("index")), new EsaAnalyzer(analyzerOptions), fileSystemScoringReader.getCollectionWriter(), scoreWriterOptions);
+                File wikipediaFile = new File(cli.getOptionValue("index"));
+                RareWordDictionary rareWordDictionary = new RareWordDictionary(new EsaAnalyzer(analyzerOptions), 0);
+                rareWordDictionary.parse(wikipediaFile);
+                CollectionInfo collectionInfo = new CollectionInfo(rareWordDictionary.getDocsRead(), rareWordDictionary.getAverageDocumentLength(), rareWordDictionary.getDocumentFrequencies());
+
+                TfIdfStrategyFactory tfIdfFactory = new TfIdfStrategyFactory();
+                TfIdfStrategy tfIdfStrategy = tfIdfFactory.getStrategy(tfIdfOptions);
+                TfIdfAnalyzer tfIdfAnalyzer = new TfIdfAnalyzer(tfIdfStrategy, new EsaAnalyzer(analyzerOptions), collectionInfo);
+                scoreWriterOptions.setAnalyzer(tfIdfAnalyzer);
+
+                ScoreWriter writer = new ScoreWriter(wikipediaFile, fileSystemScoringReader.getCollectionWriter(), collectionInfo, scoreWriterOptions);
+                writer.index();
             }
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }
-    }
-
-    public static void indexFile(File wikipediaFile, Analyzer analyzer, CollectionWriter collectionWriter, ScoreWriterOptions scoreWriterOptions) throws IOException, ParserConfigurationException, SAXException {
-        //Get document frequencies
-        RareWordDictionary rareWordDictionary = new RareWordDictionary(analyzer, 0);
-        rareWordDictionary.parse(wikipediaFile);
-        CollectionInfo collectionInfo = new CollectionInfo(rareWordDictionary.getDocsRead(), rareWordDictionary.getAverageDocumentLength(), rareWordDictionary.getDocumentFrequencies());
-
-        ScoreWriter writer = new ScoreWriter(wikipediaFile, collectionWriter, collectionInfo, scoreWriterOptions);
-        writer.index();
     }
 }
