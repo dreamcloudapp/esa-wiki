@@ -10,9 +10,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLStreamException;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
+import java.io.*;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Map;
@@ -29,6 +27,11 @@ import java.util.regex.Pattern;
  *         <redirect>United States</redirect>
  *     </doc>
  * </docs>
+ *
+ * Also creates a text file with all article IDs mapped to their titles:
+ * int string newline
+ * int string newline
+ * etc.
  */
 class WikiTitleMapper extends XmlWritingHandler {
     ArrayList<Pattern> titleExclusionPatterns;
@@ -46,7 +49,7 @@ class WikiTitleMapper extends XmlWritingHandler {
         saxFactory.setXIncludeAware(true);
     }
 
-    public void mapToXml(File outputFile) throws IOException, XMLStreamException, ParserConfigurationException, SAXException {
+    public void writeTitles(File outputFile) throws IOException, XMLStreamException, ParserConfigurationException, SAXException {
         this.open(outputFile);
         this.writeDocumentBegin("docs");
         this.parse();
@@ -102,7 +105,7 @@ class WikiTitleMapper extends XmlWritingHandler {
         }
     }
 
-    protected void writeDocument(String title, String redirect) throws XMLStreamException, IOException {
+    private void writeDocument(String title, String redirect) throws XMLStreamException, IOException {
         this.writeStartElement("doc");
         this.writeElement("title", title);
         this.writeElement("redirect", redirect);

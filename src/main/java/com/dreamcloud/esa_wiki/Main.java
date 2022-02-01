@@ -67,8 +67,13 @@ public class Main {
         //Annotating
         Option wikiPreprocessorOption = new Option(null, "preprocess", true, "inputFile outputFile titleMapOutputFile / Wiki preprocessing: template resolution, title normalization, article stripping");
         wikiPreprocessorOption.setRequired(false);
-        wikiPreprocessorOption.setArgs(3);
+        wikiPreprocessorOption.setArgs(4);
         options.addOption(wikiPreprocessorOption);
+
+        Option writeIdTitlesOption = new Option(null, "write-id-titles", true, "inputFile outputFile titleMapOutputFile / Wiki preprocessing: template resolution, title normalization, article stripping");
+        writeIdTitlesOption.setRequired(false);
+        writeIdTitlesOption.setArgs(2);
+        options.addOption(writeIdTitlesOption);
 
         Option linkCountOption = new Option(null, "count-links-and-terms", true, "wikiInputFile titleMapFile outputFile / Creates an annotated XML file with link counts.");
         linkCountOption.setRequired(false);
@@ -134,6 +139,7 @@ public class Main {
 
 
             String[] wikiPreprocessorArgs = cli.getOptionValues("preprocess");
+            String[] writeIdTitlesArgs = cli.getOptionValues("write-id-titles");
             String[] findArticleArgs = cli.getOptionValues("find-article");
             String[] countLinkArgs = cli.getOptionValues("count-links-and-terms");
             String[] repeatContentArgs = cli.getOptionValues("repeat-content");
@@ -160,7 +166,7 @@ public class Main {
                 System.out.println("----------------------------------------");
             }
 
-            else if(!ArrayUtils.tooShort(wikiPreprocessorArgs, 3)) {
+            else if(!ArrayUtils.tooShort(wikiPreprocessorArgs, 4)) {
                 File inputFile = new File(wikiPreprocessorArgs[0]);
                 File outputFile = new File(wikiPreprocessorArgs[1]);
                 File titleMapOutputFile = new File(wikiPreprocessorArgs[2]);
@@ -184,6 +190,15 @@ public class Main {
                 wikiLinkAnnotatorOptions.analyzer = new EsaAnalyzer(analyzerOptions);
                 try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(wikiLinkAnnotatorOptions)) {
                     annotator.annotate(strippedFile, titleMapFile, outputFile);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+            }
+
+            else if(!ArrayUtils.tooShort(writeIdTitlesArgs, 2)) {
+                try(IdTitleWriter writer = new IdTitleWriter(new File(writeRareWordArgs[0]))) {
+                    writer.writeTitles(new File(writeIdTitlesArgs[1]));
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);

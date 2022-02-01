@@ -16,6 +16,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,7 +60,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
     public void preprocess(File inputFile, File outputFile, File titleOutputFile) throws Exception {
         //Create a map of normalized titles
         try(WikiTitleMapper titleMapper = new WikiTitleMapper(titleExclusionPatterns, inputFile)) {
-            titleMapper.mapToXml(titleOutputFile);
+            titleMapper.writeTitles(titleOutputFile);
         }
 
         /*
@@ -67,6 +68,8 @@ public class WikiPreprocessor extends XmlWritingHandler {
         try(TemplateMapper mapper = new TemplateMapper(new TemplateResolutionOptions())) {
             templateMap = mapper.map(inputFile);
         }*/
+        templateMap = new ConcurrentHashMap<>();
+
 
         //Perform the template substitution
         reset();
@@ -79,8 +82,8 @@ public class WikiPreprocessor extends XmlWritingHandler {
         SAXParser saxParser = saxFactory.newSAXParser();
 
         //Build category hierarchies
-        /*categoryAnalyzer.analyze(inputFile, templateProcessor);
-        excludedCategories = categoryAnalyzer.getGabrilovichExclusionCategories();*/
+        categoryAnalyzer.analyze(inputFile, templateProcessor);
+        excludedCategories = categoryAnalyzer.getGabrilovichExclusionCategories();
 
         this.open(outputFile);
         this.writeDocumentBegin("docs");
@@ -147,7 +150,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
         }*/
 
         try {
-            /*text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
+            //text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
 
             //Exclude articles in excluded categories
             for (String articleCategory: categoryAnalyzer.getArticleCategories(text)) {
@@ -165,7 +168,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
                     this.docsStrippedByCategory++;
                     return;
                 }
-            }*/
+            }
 
             //We've handled templates, so let's strip out HTML tags and CSS stuff
             //text = Jsoup.clean(text, "", Safelist.none());
