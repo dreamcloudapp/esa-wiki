@@ -1,5 +1,6 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
+import com.dreamcloud.esa_wiki.annoatation.category.CategoryAnalyzer;
 import com.dreamcloud.esa_wiki.annoatation.handler.XmlWritingHandler;
 import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,9 +39,12 @@ public class WikiPreprocessor extends XmlWritingHandler {
     protected Pattern stubPattern = Pattern.compile("\\{\\{[^}]*([Ss]tub|[Aa]sbox|[Mm]issing [Ii]nformation)[^}]*}}");
     ArrayList<Pattern> titleExclusionPatterns;
     protected final SAXParserFactory saxFactory;
+
     protected int docsStripped = 0;
     protected int numRedirects = 0;
     private int docsStrippedByCategory = 0;
+    private int numCategories = 0;
+    private Map<String, Set<String>> docsStrippedByRegex = new ConcurrentHashMap<>();
     protected int numStubs = 0;
 
     public WikiPreprocessor(WikiPreprocessorOptions options) {
@@ -63,12 +68,11 @@ public class WikiPreprocessor extends XmlWritingHandler {
             titleMapper.writeTitles(titleOutputFile);
         }
 
-        /*
+
         //Generate a normalized template map
         try(TemplateMapper mapper = new TemplateMapper(new TemplateResolutionOptions())) {
             templateMap = mapper.map(inputFile);
-        }*/
-        templateMap = new ConcurrentHashMap<>();
+        }
 
 
         //Perform the template substitution
@@ -83,7 +87,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
 
         //Build category hierarchies
         categoryAnalyzer.analyze(inputFile, templateProcessor);
-        excludedCategories = categoryAnalyzer.getGabrilovichExclusionCategories();
+        excludedCategories = categoryAnalyzer.getExcludedCategoryNames();
 
         this.open(outputFile);
         this.writeDocumentBegin("docs");
@@ -101,6 +105,24 @@ public class WikiPreprocessor extends XmlWritingHandler {
         System.out.println("Articles Stripped by Category:\t" + docsStrippedByCategory);
         System.out.println("Redirects Stripped:\t" + numRedirects);
         System.out.println("Stubs Stripped:\t" + numStubs);
+        System.out.println("Categories Stripped:\t" + numCategories);
+
+        int docsStrippedByRegexCount = 0;
+        for (Set<String> stripped: docsStrippedByRegex.values()) {
+            docsStrippedByRegexCount += stripped.size();
+        }
+        System.out.println("Stripped By Title:\t" + docsStrippedByRegexCount);
+        System.out.println("----------------------------------------");
+        for (String regex: docsStrippedByRegex.keySet()) {
+            System.out.println(regex + ":\t" + docsStrippedByRegex.get(regex).size());
+        }
+        System.out.println("----------------------------------------");
+        for (String regex: docsStrippedByRegex.keySet()) {
+            docsStrippedByRegex.get(regex).forEach((String title) -> {
+                System.out.println(regex + "\t->\t" + title);
+            });
+        }
+        System.out.println("----------------------------------------");
         NumberFormat format = NumberFormat.getPercentInstance();
         format.setMinimumFractionDigits(1);
         System.out.println("Strip Rate:\t" + format.format(((double) docsStripped) / ((double) this.getDocsRead())));
@@ -122,6 +144,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
         //Exclude category articles
         if (normalizedTitle.startsWith("category:")) {
             this.docsStripped++;
+            this.numCategories++;
             return;
         }
 
@@ -129,6 +152,10 @@ public class WikiPreprocessor extends XmlWritingHandler {
         for (Pattern pattern: this.titleExclusionPatterns) {
             Matcher matcher = pattern.matcher(title.toLowerCase());
             if (matcher.find()) {
+                if (!docsStrippedByRegex.containsKey(pattern.pattern())) {
+                    docsStrippedByRegex.put(pattern.pattern(), new HashSet<>());
+                }
+                docsStrippedByRegex.get(pattern.pattern()).add(title.toLowerCase());
                 this.docsStripped++;
                 return;
             }
@@ -150,25 +177,20 @@ public class WikiPreprocessor extends XmlWritingHandler {
         }*/
 
         try {
-            //text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
+            text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
 
             //Exclude articles in excluded categories
+            System.out.println("Excluded articles:");
+            System.out.println("---------------------------------------");
             for (String articleCategory: categoryAnalyzer.getArticleCategories(text)) {
                 if (excludedCategories.contains(articleCategory)) {
-                    if (this.getDocsRead() % 1000 == 0) {
-                        System.out.println("Article '" + normalizedTitle + "' excluded for being in category '" + articleCategory + "'");
-                        System.out.println("---------------------------------------");
-                        for (String category: categoryAnalyzer.getArticleCategories(text)) {
-                            System.out.println(category);
-                        }
-                        System.out.println("---------------------------------------");
-                    }
-
+                    System.out.println(articleCategory + "\t->\t" + normalizedTitle);
                     this.docsStripped++;
                     this.docsStrippedByCategory++;
                     return;
                 }
             }
+            System.out.println("---------------------------------------");
 
             //We've handled templates, so let's strip out HTML tags and CSS stuff
             //text = Jsoup.clean(text, "", Safelist.none());

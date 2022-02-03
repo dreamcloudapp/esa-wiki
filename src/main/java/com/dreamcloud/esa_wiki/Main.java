@@ -13,8 +13,8 @@ import com.dreamcloud.esa_score.analysis.TfIdfStrategyFactory;
 import com.dreamcloud.esa_score.analysis.strategy.TfIdfStrategy;
 import com.dreamcloud.esa_score.cli.FileSystemScoringReader;
 import com.dreamcloud.esa_score.cli.TfIdfOptionsReader;
-import com.dreamcloud.esa_score.fs.CollectionWriter;
 import com.dreamcloud.esa_wiki.annoatation.*;
+import com.dreamcloud.esa_wiki.annoatation.category.CategoryAnalyzer;
 import com.dreamcloud.esa_wiki.annoatation.debug.ArticleFinder;
 import com.dreamcloud.esa_wiki.annoatation.debug.DebugArticle;
 import com.dreamcloud.esa_wiki.cli.AnnotationOptionsReader;
@@ -25,14 +25,12 @@ import com.dreamcloud.esa_wiki.utility.ArrayUtils;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
 
 import org.apache.commons.cli.*;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.wikipedia.WikipediaTokenizer;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -197,7 +195,7 @@ public class Main {
             }
 
             else if(!ArrayUtils.tooShort(writeIdTitlesArgs, 2)) {
-                try(IdTitleWriter writer = new IdTitleWriter(new File(writeRareWordArgs[0]))) {
+                try(IdTitleWriter writer = new IdTitleWriter(new File(writeIdTitlesArgs[0]))) {
                     writer.writeTitles(new File(writeIdTitlesArgs[1]));
                 } catch (Exception e) {
                     e.printStackTrace();
