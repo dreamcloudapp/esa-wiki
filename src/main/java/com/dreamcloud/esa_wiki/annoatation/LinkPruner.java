@@ -6,11 +6,11 @@ import java.util.Collection;
 import java.util.Iterator;
 
 public class LinkPruner {
-    protected MultiValuedMap<String, String> incomingLinkMap;
-    protected MultiValuedMap<String, String> outgoingLinkMap;
+    protected MultiValuedMap<Integer, Integer> incomingLinkMap;
+    protected MultiValuedMap<Integer, Integer> outgoingLinkMap;
     protected int minimumLinks;
 
-    public LinkPruner(MultiValuedMap<String, String> incomingLinkMap, MultiValuedMap<String, String> outgoingLinkMap, int minimumLinks) {
+    public LinkPruner(MultiValuedMap<Integer, Integer> incomingLinkMap, MultiValuedMap<Integer, Integer> outgoingLinkMap, int minimumLinks) {
         this.incomingLinkMap = incomingLinkMap;
         this.outgoingLinkMap = outgoingLinkMap;
         this.minimumLinks = minimumLinks;
@@ -32,12 +32,12 @@ public class LinkPruner {
 
     protected int pruneOutgoingLinks() {
         int pruned = 0;
-        for (Iterator<String> it = outgoingLinkMap.keySet().iterator(); it.hasNext();) {
-            String article = it.next();
-            Collection<String> linkedArticles = outgoingLinkMap.get(article);
+        for (Iterator<Integer> it = outgoingLinkMap.keySet().iterator(); it.hasNext();) {
+            Integer articleId = it.next();
+            Collection<Integer> linkedArticles = outgoingLinkMap.get(articleId);
             if (linkedArticles.size() < minimumLinks) {
-                for (String linkedArticle: linkedArticles) {
-                    incomingLinkMap.removeMapping(linkedArticle, article);
+                for (Integer linkedArticleId: linkedArticles) {
+                    incomingLinkMap.removeMapping(linkedArticleId, articleId);
                 }
                 it.remove();
                 pruned++;
@@ -48,12 +48,12 @@ public class LinkPruner {
 
     protected int pruneIncomingLinks() {
         int pruned = 0;
-        for (Iterator<String> it = incomingLinkMap.keySet().iterator(); it.hasNext();) {
-            String linkedArticle = it.next();
-            Collection<String> articles = incomingLinkMap.get(linkedArticle);
+        for (Iterator<Integer> it = incomingLinkMap.keySet().iterator(); it.hasNext();) {
+            Integer linkedArticleId = it.next();
+            Collection<Integer> articles = incomingLinkMap.get(linkedArticleId);
             if (articles.size() < minimumLinks) {
-                for (String article: articles) {
-                    outgoingLinkMap.removeMapping(article, linkedArticle);
+                for (Integer articleId: articles) {
+                    outgoingLinkMap.removeMapping(articleId, linkedArticleId);
                 }
                 it.remove();
                 pruned++;

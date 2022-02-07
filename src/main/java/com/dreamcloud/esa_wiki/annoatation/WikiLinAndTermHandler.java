@@ -1,5 +1,6 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
+import com.dreamcloud.esa_score.score.DocumentNameResolver;
 import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
 import org.apache.commons.collections4.MultiValuedMap;
@@ -20,19 +21,19 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
     WikiLinkAndTermAnnotatorOptions options;
     static Pattern linkRegexPattern = Pattern.compile("\\[\\[(?!File:|Image:)([^|#\\]]+)[^]]*]]");
     protected Map<String, String> titleMap;
-    protected MultiValuedMap<String, String> incomingLinkMap;
-    protected MultiValuedMap<String, String> outgoingLinkMap;
-    protected Map<String, WikiAnnotation> annotations;
+    protected MultiValuedMap<Integer, Integer> incomingLinkMap;
+    protected MultiValuedMap<Integer, Integer> outgoingLinkMap;
+    protected Map<Integer, WikiAnnotation> annotations;
     protected int analysisMode;
 
-    public WikiLinAndTermHandler(WikiLinkAndTermAnnotatorOptions options, Map<String, String> titleMap, Map<String, WikiAnnotation> annotations, int analysisMode) {
+    public WikiLinAndTermHandler(WikiLinkAndTermAnnotatorOptions options, Map<String, String> titleMap, Map<Integer, WikiAnnotation> annotations, int analysisMode) {
         this.options = options;
         this.titleMap = titleMap;
         this.annotations = annotations;
         this.analysisMode = analysisMode;
     }
 
-    public WikiLinAndTermHandler(WikiLinkAndTermAnnotatorOptions options, Map<String, String> titleMap, Map<String, WikiAnnotation> annotations, int analysisMode, MultiValuedMap<String, String> incomingLinks, MultiValuedMap<String, String> outgoingLinks) {
+    public WikiLinAndTermHandler(WikiLinkAndTermAnnotatorOptions options, Map<String, String> titleMap, Map<Integer, WikiAnnotation> annotations, int analysisMode, MultiValuedMap<Integer, Integer> incomingLinks, MultiValuedMap<Integer, Integer> outgoingLinks) {
         this.options = options;
         this.titleMap = titleMap;
         this.annotations = annotations;
@@ -44,6 +45,7 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
     protected void handleDocument(Map<String, String> xmlFields) {
         String title = xmlFields.get("title");
         String text = xmlFields.get("text");
+        int titleId = Integer.parseInt(xmlFields.get("id"));
 
         //Analyze the text!
         if (analysisMode == ANALYSIS_TERMS) {
@@ -60,11 +62,11 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
                 e.printStackTrace();
                 System.exit(1);
             }
-            if (termCount >= options.minimumTerms) {
-                annotations.put(title, new WikiAnnotation(0, 0, termCount));
+            if (termCount >= options.minimumTerms && (options.maximumTermCount == 0 || termCount <= options.maximumTermCount)) {
+                annotations.put(titleId, new WikiAnnotation(0, 0, termCount));
             }
         } else {
-            WikiAnnotation annotation = annotations.get(title);
+            WikiAnnotation annotation = annotations.get(titleId);
             if (annotation == null) {
                 return;
             }
@@ -76,17 +78,18 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
                 After that, we go to each annotation for an outgoing link and up it's incoming link count.
              */
             Matcher matcher = linkRegexPattern.matcher(text);
-            Set<String> outgoingLinks = new HashSet<>();
+            Set<Integer> outgoingLinks = new HashSet<>();
             while (matcher.find()) {
-                String link = titleMap.get(StringUtils.normalizeWikiTitle(matcher.group(1)));
-                if (link != null && annotations.containsKey(link)) {
-                    outgoingLinks.add(link);
+                String link = titleMap.get(titleMap.get(StringUtils.normalizeWikiTitle(matcher.group(1))));
+                int linkId = DocumentNameResolver.getId(link);
+                if (linkId != -1 && annotations.containsKey(linkId)) {
+                    outgoingLinks.add(linkId);
                 }
             }
 
             if (options.minimumOutgoingLinks > 0 && outgoingLinks.size() < options.minimumOutgoingLinks) {
                 //This doesn't count toward anyone's links and can get removed now to free up memory
-                annotations.remove(title);
+                annotations.remove(titleId);
                 return;
             }
 
@@ -94,13 +97,12 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
             annotation.outgoingLinks = outgoingLinks.size();
 
             //Add to others incoming links
-            for (String outgoingLink: outgoingLinks) {
+            for (Integer outgoingLink: outgoingLinks) {
                 if (annotations.containsKey(outgoingLink)) {
                     WikiAnnotation outgoingAnnotation = annotations.get(outgoingLink);
                     outgoingAnnotation.incomingLinks++;
-
-                    outgoingLinkMap.put(title, outgoingLink);
-                    incomingLinkMap.put(outgoingLink, title);
+                    outgoingLinkMap.put(titleId, outgoingLink);
+                    incomingLinkMap.put(outgoingLink, titleId);
                 }
             }
         }

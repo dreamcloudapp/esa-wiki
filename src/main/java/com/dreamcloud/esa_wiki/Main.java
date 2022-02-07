@@ -13,6 +13,7 @@ import com.dreamcloud.esa_score.analysis.TfIdfStrategyFactory;
 import com.dreamcloud.esa_score.analysis.strategy.TfIdfStrategy;
 import com.dreamcloud.esa_score.cli.FileSystemScoringReader;
 import com.dreamcloud.esa_score.cli.TfIdfOptionsReader;
+import com.dreamcloud.esa_score.score.DocumentNameResolver;
 import com.dreamcloud.esa_wiki.annoatation.*;
 import com.dreamcloud.esa_wiki.annoatation.category.CategoryAnalyzer;
 import com.dreamcloud.esa_wiki.annoatation.debug.ArticleFinder;
@@ -72,6 +73,11 @@ public class Main {
         writeIdTitlesOption.setRequired(false);
         writeIdTitlesOption.setArgs(2);
         options.addOption(writeIdTitlesOption);
+
+        Option idTitlesOption = new Option(null, "id-titles", true, "inputFile");
+        idTitlesOption.setRequired(false);
+        idTitlesOption.setArgs(1);
+        options.addOption(idTitlesOption);
 
         Option linkCountOption = new Option(null, "count-links-and-terms", true, "wikiInputFile titleMapFile outputFile / Creates an annotated XML file with link counts.");
         linkCountOption.setRequired(false);
@@ -146,6 +152,7 @@ public class Main {
             String titleRepeat = cli.getOptionValue("repeat-title");
             String linkRepeat = cli.getOptionValue("repeat-link");
             String categoryInfo = cli.getOptionValue("category-info");
+            String idTitles = cli.getOptionValue("id-titles");
 
             //Display article text
             if(!ArrayUtils.tooShort(findArticleArgs, 2)) {
@@ -177,6 +184,12 @@ public class Main {
             }
 
             else if (!ArrayUtils.tooShort(countLinkArgs, 3)) {
+                if (!StringUtils.empty(idTitles)) {
+                    DocumentNameResolver.loadFile(new File(idTitles));
+                } else {
+                    throw new IllegalArgumentException("The --id-titles file must be specified during link and term counting.");
+                }
+
                 File strippedFile = new File(countLinkArgs[0]);
                 File titleMapFile = new File(countLinkArgs[1]);
                 File outputFile = new File(countLinkArgs[2]);
@@ -266,6 +279,8 @@ public class Main {
 
                 ScoreWriter writer = new ScoreWriter(wikipediaFile, fileSystemScoringReader.getCollectionWriter(), collectionInfo, scoreWriterOptions);
                 writer.index();
+            } else {
+                formatter.printHelp(HelpFormatter.DEFAULT_SYNTAX_PREFIX, options);
             }
         } catch (Exception e) {
             e.printStackTrace();

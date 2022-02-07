@@ -1,5 +1,6 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
+import com.dreamcloud.esa_score.score.DocumentNameResolver;
 import com.dreamcloud.esa_wiki.annoatation.handler.XmlWritingHandler;
 import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import org.apache.commons.collections4.MultiValuedMap;
@@ -38,14 +39,14 @@ import java.util.Set;
  * but makes the dump less versatile.
  */
 public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
-    protected WikiLinkAndTermAnnotatorOptions options;
-    protected Map<String, String> titleMap = new HashMap<>();
-    protected MultiValuedMap<String, String> incomingLinkMap = new HashSetValuedHashMap<>();
-    protected MultiValuedMap<String, String> outgoingLinkMap = new HashSetValuedHashMap<>();
-    protected Map<String, WikiAnnotation> annotations = new HashMap<>();
+    private final WikiLinkAndTermAnnotatorOptions options;
+    private Map<String, String> titleMap = new HashMap<>();
+    private final MultiValuedMap<Integer, Integer> incomingLinkMap = new HashSetValuedHashMap<>();
+    private final MultiValuedMap<Integer, Integer> outgoingLinkMap = new HashSetValuedHashMap<>();
+    private final Map<Integer, WikiAnnotation> annotations = new HashMap<>();
 
-    protected final SAXParserFactory saxFactory;
-    protected int numStripped = 0;
+    private final SAXParserFactory saxFactory;
+    private int numStripped = 0;
 
     public WikiLinkAndTermAnnotator(WikiLinkAndTermAnnotatorOptions options) {
         this.options = options;
@@ -59,6 +60,8 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         super.reset();
         annotations.clear();
         titleMap.clear();
+        outgoingLinkMap.clear();
+        incomingLinkMap.clear();
     }
 
     public void annotate(File inputFile, File titleMapFile, File outputFile) throws IOException, ParserConfigurationException, SAXException, XMLStreamException {
@@ -66,6 +69,22 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         buildTitleMap(titleMapFile);
         analyzeTerms(inputFile);
         analyzeLinks(inputFile);
+
+        LinkPruner pruner = new LinkPruner(incomingLinkMap, outgoingLinkMap, options.minimumIncomingLinks);
+        System.out.println("Outgoing Links: " + outgoingLinkMap.keySet().size());
+        System.out.println("Incoming Links: " + incomingLinkMap.keySet().size());
+        pruner.prune();
+        annotations.keySet().retainAll(outgoingLinkMap.keySet());
+        for (Integer articleId: annotations.keySet()) {
+            WikiAnnotation annotation = annotations.get(articleId);
+            annotation.outgoingLinks = outgoingLinkMap.get(articleId).size();
+            annotation.incomingLinks = incomingLinkMap.get(articleId).size();
+        }
+
+        //Free up some memory
+        outgoingLinkMap.clear();
+        incomingLinkMap.clear();
+
         System.out.println("Annotations: " + annotations.size());
         float totalIncomingLinks = 0;
         float totalOutgoingLinks = 0;
@@ -124,12 +143,6 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         InputSource is = new InputSource(reader);
         is.setEncoding("UTF-8");
         saxParser.parse(is, new WikiLinAndTermHandler(options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_LINKS, incomingLinkMap, outgoingLinkMap));
-
-        LinkPruner pruner = new LinkPruner(incomingLinkMap, outgoingLinkMap, options.minimumIncomingLinks);
-
-        System.out.println("Outgoing Links: " + outgoingLinkMap.keySet().size());
-        System.out.println("Incoming Links: " + incomingLinkMap.keySet().size());
-        pruner.prune();
         reader.close();
     }
 
@@ -159,18 +172,21 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
     protected void handleDocument(Map<String, String> xmlFields) {
         String title = xmlFields.get("title");
         String text = xmlFields.get("text");
-        WikiAnnotation annotation = annotations.getOrDefault(title, null);
+        int id = Integer.parseInt(xmlFields.get("id"));
+        WikiAnnotation annotation = annotations.getOrDefault(id, null);
         if (annotation != null) {
             if (annotation.incomingLinks < options.minimumIncomingLinks || annotation.outgoingLinks < options.minimumOutgoingLinks || annotation.terms < options.minimumTerms) {
                 numStripped++;
             } else {
                 try {
-                    writeDocument(title, text, annotation);
+                    writeDocument(id, title, text, annotation);
                 } catch (XMLStreamException | IOException e) {
                     e.printStackTrace();
                     System.exit(1);
                 }
             }
+            //Free up some memory
+            annotations.remove(id);
         } else {
             numStripped++;
         }
@@ -180,8 +196,9 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         }
     }
 
-    public void writeDocument(String title, String text, WikiAnnotation annotation) throws XMLStreamException, IOException {
+    public void writeDocument(int id, String title, String text, WikiAnnotation annotation) throws XMLStreamException, IOException {
         this.writeStartElement("doc");
+        this.writeElement("id", String.valueOf(id));
         this.writeElement("title", title);
         this.writeElement("text", text);
         this.writeElement("incomingLinks", String.valueOf(annotation.incomingLinks));
