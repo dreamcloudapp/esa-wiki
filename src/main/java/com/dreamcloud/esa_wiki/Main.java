@@ -199,7 +199,7 @@ public class Main {
                 wikiLinkAnnotatorOptions.minimumTerms = annotationOptions.getMinimumTermCount();
                 wikiLinkAnnotatorOptions.maximumTermCount = annotationOptions.getMaximumTermCount();
                 wikiLinkAnnotatorOptions.analyzer = new EsaAnalyzer(analyzerOptions);
-                try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(wikiLinkAnnotatorOptions)) {
+                try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(12, 1000, wikiLinkAnnotatorOptions)) {
                     annotator.annotate(strippedFile, titleMapFile, outputFile);
                 } catch (Exception e) {
                     e.printStackTrace();

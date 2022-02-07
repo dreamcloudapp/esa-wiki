@@ -1,7 +1,6 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
-import com.dreamcloud.esa_score.score.DocumentNameResolver;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlWritingHandler;
+import com.dreamcloud.esa_wiki.annoatation.handler.ConcurrentXmlWritingHandler;
 import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
@@ -18,7 +17,8 @@ import java.io.Reader;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Takes a stripped dump file and a mapping of redirect titles
@@ -38,17 +38,18 @@ import java.util.Set;
  * This results in a smaller file size,
  * but makes the dump less versatile.
  */
-public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
+public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
     private final WikiLinkAndTermAnnotatorOptions options;
     private Map<String, String> titleMap = new HashMap<>();
     private final MultiValuedMap<Integer, Integer> incomingLinkMap = new HashSetValuedHashMap<>();
     private final MultiValuedMap<Integer, Integer> outgoingLinkMap = new HashSetValuedHashMap<>();
-    private final Map<Integer, WikiAnnotation> annotations = new HashMap<>();
+    private final Map<Integer, WikiAnnotation> annotations = new ConcurrentHashMap<>();
 
     private final SAXParserFactory saxFactory;
     private int numStripped = 0;
 
-    public WikiLinkAndTermAnnotator(WikiLinkAndTermAnnotatorOptions options) {
+    public WikiLinkAndTermAnnotator(int threadCount, int batchSize, WikiLinkAndTermAnnotatorOptions options) {
+        super(threadCount, batchSize);
         this.options = options;
         saxFactory = SAXParserFactory.newInstance();
         saxFactory.setNamespaceAware(true);
@@ -133,7 +134,7 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         Reader reader = BZipFileTools.getFileReader(strippedFile);
         InputSource is = new InputSource(reader);
         is.setEncoding("UTF-8");
-        saxParser.parse(is, new WikiLinAndTermHandler(options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_TERMS));
+        saxParser.parse(is, new WikiLinAndTermHandler(threadCount, batchSize, options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_TERMS));
         reader.close();
     }
 
@@ -142,7 +143,7 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         Reader reader = BZipFileTools.getFileReader(strippedFile);
         InputSource is = new InputSource(reader);
         is.setEncoding("UTF-8");
-        saxParser.parse(is, new WikiLinAndTermHandler(options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_LINKS, incomingLinkMap, outgoingLinkMap));
+        saxParser.parse(is, new WikiLinAndTermHandler(threadCount, batchSize, options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_LINKS, incomingLinkMap, outgoingLinkMap));
         reader.close();
     }
 
@@ -169,41 +170,47 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         System.out.println("---------------------------------------");
     }
 
-    protected void handleDocument(Map<String, String> xmlFields) {
-        String title = xmlFields.get("title");
-        String text = xmlFields.get("text");
-        int id = Integer.parseInt(xmlFields.get("id"));
-        WikiAnnotation annotation = annotations.getOrDefault(id, null);
-        if (annotation != null) {
-            if (annotation.incomingLinks < options.minimumIncomingLinks || annotation.outgoingLinks < options.minimumOutgoingLinks || annotation.terms < options.minimumTerms) {
-                numStripped++;
-            } else {
-                try {
-                    writeDocument(id, title, text, annotation);
-                } catch (XMLStreamException | IOException e) {
-                    e.printStackTrace();
-                    System.exit(1);
+    @Override
+    protected Integer handleDocuments(Vector<Map<String, String>> documents) {
+        for (Map<String, String> document: documents) {
+            String title = document.get("title");
+            String text = document.get("text");
+            int id = Integer.parseInt(document.get("id"));
+            WikiAnnotation annotation = annotations.getOrDefault(id, null);
+            if (annotation != null) {
+                if (annotation.incomingLinks < options.minimumIncomingLinks || annotation.outgoingLinks < options.minimumOutgoingLinks || annotation.terms < options.minimumTerms) {
+                    numStripped++;
+                } else {
+                    try {
+                        writeDocument(id, title, text, annotation);
+                    } catch (XMLStreamException | IOException e) {
+                        e.printStackTrace();
+                        System.exit(1);
+                    }
                 }
+                //Free up some memory
+                annotations.remove(id);
+            } else {
+                numStripped++;
             }
-            //Free up some memory
-            annotations.remove(id);
-        } else {
-            numStripped++;
-        }
 
-        if (this.getDocsRead() % 1000 == 0) {
-            System.out.println("annotated article\t[" + numStripped + " | " + this.getDocsRead() + "]");
+            if (this.getDocsRead() % 1000 == 0) {
+                System.out.println("annotated article\t[" + numStripped + " | " + this.getDocsRead() + "]");
+            }
         }
+        return documents.size();
     }
 
     public void writeDocument(int id, String title, String text, WikiAnnotation annotation) throws XMLStreamException, IOException {
-        this.writeStartElement("doc");
-        this.writeElement("id", String.valueOf(id));
-        this.writeElement("title", title);
-        this.writeElement("text", text);
-        this.writeElement("incomingLinks", String.valueOf(annotation.incomingLinks));
-        this.writeElement("outgoingLinks", String.valueOf(annotation.outgoingLinks));
-        this.writeElement("terms", String.valueOf(annotation.terms));
-        this.writeEndElement();
+        synchronized (xmlWriter) {
+            this.writeStartElement("doc");
+            this.writeElement("id", String.valueOf(id));
+            this.writeElement("title", title);
+            this.writeElement("text", text);
+            this.writeElement("incomingLinks", String.valueOf(annotation.incomingLinks));
+            this.writeElement("outgoingLinks", String.valueOf(annotation.outgoingLinks));
+            this.writeElement("terms", String.valueOf(annotation.terms));
+            this.writeEndElement();
+        }
     }
 }
