@@ -18,7 +18,6 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
     public static int ANALYSIS_LINKS = 2;
 
     WikiLinkAndTermAnnotatorOptions options;
-    protected int numStripped = 0;
     static Pattern linkRegexPattern = Pattern.compile("\\[\\[(?!File:|Image:)([^|#\\]]+)[^]]*]]");
     protected Map<String, String> titleMap;
     protected MultiValuedMap<String, String> incomingLinkMap;
@@ -83,6 +82,12 @@ public class WikiLinAndTermHandler extends XmlReadingHandler {
                 if (link != null && annotations.containsKey(link)) {
                     outgoingLinks.add(link);
                 }
+            }
+
+            if (options.minimumOutgoingLinks > 0 && outgoingLinks.size() < options.minimumOutgoingLinks) {
+                //This doesn't count toward anyone's links and can get removed now to free up memory
+                annotations.remove(title);
+                return;
             }
 
             //Add to our outgoing links

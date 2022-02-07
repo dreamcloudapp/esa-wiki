@@ -180,17 +180,14 @@ public class WikiPreprocessor extends XmlWritingHandler {
             text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
 
             //Exclude articles in excluded categories
-            System.out.println("Excluded articles:");
-            System.out.println("---------------------------------------");
             for (String articleCategory: categoryAnalyzer.getArticleCategories(text)) {
                 if (excludedCategories.contains(articleCategory)) {
-                    System.out.println(articleCategory + "\t->\t" + normalizedTitle);
+                    System.out.println("article " + normalizedTitle + "\t->\t" + articleCategory + " excluded");
                     this.docsStripped++;
                     this.docsStrippedByCategory++;
                     return;
                 }
             }
-            System.out.println("---------------------------------------");
 
             //We've handled templates, so let's strip out HTML tags and CSS stuff
             //text = Jsoup.clean(text, "", Safelist.none());

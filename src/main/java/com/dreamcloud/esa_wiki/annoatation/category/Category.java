@@ -27,7 +27,7 @@ public class Category {
     }
 
     public static Category createNormalizedCategory(String name) {
-        return new Category(StringUtils.normalizeWikiTitle(name), true);
+        return new Category(StringUtils.normalizeWikiTitle(name), false);
     }
 
     public String getName() {

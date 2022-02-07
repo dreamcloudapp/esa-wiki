@@ -24,7 +24,7 @@ import java.util.Set;
  * and adds the following information:
  * <docs>
  *     <doc>
- *         <title>Cat</title>
+ *         <title>cat</title>
  *         <text>Cats are small, furry, and cute mammals.</text>
  *         <incomingLinks>24</incomingLinks>
  *         <outgoingLinks>24</incomingLinks>
@@ -129,7 +129,7 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
 
         System.out.println("Outgoing Links: " + outgoingLinkMap.keySet().size());
         System.out.println("Incoming Links: " + incomingLinkMap.keySet().size());
-        Set<String> prunedTitles = pruner.prune();
+        pruner.prune();
         reader.close();
     }
 

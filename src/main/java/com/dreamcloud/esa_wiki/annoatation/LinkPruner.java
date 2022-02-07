@@ -4,12 +4,11 @@ import org.apache.commons.collections4.MultiValuedMap;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Set;
 
 public class LinkPruner {
     protected MultiValuedMap<String, String> incomingLinkMap;
     protected MultiValuedMap<String, String> outgoingLinkMap;
-    protected int minimumLinks = 0;
+    protected int minimumLinks;
 
     public LinkPruner(MultiValuedMap<String, String> incomingLinkMap, MultiValuedMap<String, String> outgoingLinkMap, int minimumLinks) {
         this.incomingLinkMap = incomingLinkMap;
@@ -17,7 +16,7 @@ public class LinkPruner {
         this.minimumLinks = minimumLinks;
     }
 
-    public Set<String> prune() {
+    public void prune() {
         int pruned;
         do {
             int prunedOut = pruneOutgoingLinks();
@@ -29,7 +28,6 @@ public class LinkPruner {
         System.out.println("Pruned Incoming: " + incomingLinkMap.keySet().size());
         outgoingLinkMap.keySet().retainAll(incomingLinkMap.keySet());
         System.out.println("Pruned Intersection: " + outgoingLinkMap.keySet().size());
-        return outgoingLinkMap.keySet();
     }
 
     protected int pruneOutgoingLinks() {

@@ -43,13 +43,14 @@ public class CategoryAnalyzer extends XmlReadingHandler {
         saxFactory.setXIncludeAware(true);
        excludedCategories.add(Category.createNormalizedCategory("Category:Star name disambiguations"));
        excludedCategories.add(Category.createNormalizedCategory("Category:America"));
-       excludedCategories.add(Category.createNormalizedCategory("Category:Disambiguation"));
+       excludedCategories.add(Category.createNormalizedCategory("Category:Disambiguation", true));
+       excludedCategories.add(Category.createNormalizedCategory("Category:Disambiguation pages", true));
        excludedCategories.add(Category.createNormalizedCategory("Category:Georgia"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Lists of political parties by generic name"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Galaxy name disambiguations"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Lists of two-letter combinations"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Disambiguation categories"));
-       excludedCategories.add(Category.createNormalizedCategory("Category:Towns in Italy (Category.createNormalizedCategory(disambiguation)"));
+       excludedCategories.add(Category.createNormalizedCategory("Category:Towns in Italy (disambiguation)"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Redirects to disambiguation pages"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Birmingham"));
        excludedCategories.add(Category.createNormalizedCategory("Category:Mathematical disambiguation"));
@@ -115,23 +116,19 @@ public class CategoryAnalyzer extends XmlReadingHandler {
 
         int excludedCount = 0;
 
-        for (String category: categoryInfo.keySet()) {
-            for (Category excludedCategory : getGabrilovichExclusionCategories()) {
-                if (areCategoriesRelated(excludedCategory.getName(), category)) {
-                    excludedCount += categoryInfo.get(excludedCategory);
-                    break;
-                }
-            }
-        }
-        System.out.println("Excluded articles: " + excludedCount);
-        System.out.println("---------------------------------------");
-
         for (Category excludedCategory: excludedCategories.toArray(Category[]::new)) {
             excludedCategoryNames.add(excludedCategory.getName());
             if (excludedCategory.isExpandable()) {
                 expandExcludedCategories(excludedCategory.getName());
             }
         }
+
+        for (String excludedCategory : excludedCategoryNames) {
+            excludedCount += categoryInfo.get(excludedCategory);
+            break;
+        }
+        System.out.println("Excluded articles: " + excludedCount);
+        System.out.println("---------------------------------------");
     }
 
     public Set<String> getExcludedCategoryNames() {
