@@ -60,8 +60,8 @@ public class IdTitleWriter extends XmlReadingHandler {
             String title = StringUtils.normalizeWikiTitle(xmlFields.get("title"));
             int id = Integer.parseInt(xmlFields.get("id"));
             this.idTitleOutputStream.writeInt(id);
+            this.idTitleOutputStream.writeInt(title.getBytes().length);
             this.idTitleOutputStream.write(title.getBytes());
-            this.idTitleOutputStream.write('\n');
             this.logMessage("id-title mapped\t[" + getDocsRead() + "]");
         } catch (IOException e) {
             e.printStackTrace();

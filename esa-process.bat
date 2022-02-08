@@ -4,7 +4,7 @@ rem call ./esa.bat --preprocess %1 %2\preprocessed.xml.bz2 %2\titles.xml.bz2 --t
 
 rem call ./esa.bat --preprocess %1 %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\id-titles.txt --title-exclusion "^(?!category:)[^: ]+:[^ ].+$" "^(ad )?[0-9]+s?( bc)?$" "^(january|february|march|april|may|june|july|august|september|october|november|december) [0-9]{1,2}( [0-9]{4})?$ "^category talk:.+$"
 
-call ./esa.bat --count-links-and-terms %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\annotated.xml.bz2 --min-in-links 15 --min-out-links 15 --min-terms 100
+call ./esa.bat --count-links-and-terms %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\annotated.xml.bz2 --min-in-links 15 --min-out-links 15 --min-terms 100 --id-titles %2\id-titles.txt
 
 rem call ./esa.bat --repeat-content %2\terms.xml.bz2 %2\repeated.xml.bz2 --repeat-title 4 --repeat-link 2
 

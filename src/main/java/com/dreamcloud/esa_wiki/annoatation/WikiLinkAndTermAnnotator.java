@@ -194,7 +194,7 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
                 numStripped++;
             }
 
-            if (this.getDocsRead() % 1000 == 0) {
+            if (id % 1000 == 0) {
                 System.out.println("annotated article\t[" + numStripped + " | " + this.getDocsRead() + "]");
             }
         }

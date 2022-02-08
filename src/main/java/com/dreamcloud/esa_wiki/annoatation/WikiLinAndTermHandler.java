@@ -110,7 +110,9 @@ public class WikiLinAndTermHandler extends ConcurrentXmlReadingHandler {
                 }
             }
 
-            this.logMessage((analysisMode == ANALYSIS_LINKS ? "link" : "term") + "-annotated article\t[" + this.getDocsRead() + "]\t\"" + title + "\"");
+            if (titleId % 1000 == 0) {
+                System.out.println((analysisMode == ANALYSIS_LINKS ? "link" : "term") + "-annotated article\t[" + this.getDocsRead() + "]\t\"" + title + "\"");
+            }
         }
         return documents.size();
     }
