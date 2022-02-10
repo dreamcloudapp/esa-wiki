@@ -1,6 +1,9 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
-import com.dreamcloud.esa_wiki.annoatation.handler.ConcurrentXmlWritingHandler;
+import com.dreamcloud.esa_wiki.annoatation.handler.WikiLinkHandler;
+import com.dreamcloud.esa_wiki.annoatation.handler.WikiTermHandler;
+import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
+import com.dreamcloud.esa_wiki.annoatation.handler.XmlWritingHandler;
 import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
@@ -15,10 +18,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.text.NumberFormat;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 /**
  * Takes a stripped dump file and a mapping of redirect titles
@@ -38,9 +40,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * This results in a smaller file size,
  * but makes the dump less versatile.
  */
-public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
+public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
     private final WikiLinkAndTermAnnotatorOptions options;
-    private Map<String, String> titleMap = new HashMap<>();
+    private final Map<String, String> titleMap = new ConcurrentHashMap<>();
     private final MultiValuedMap<Integer, Integer> incomingLinkMap = new HashSetValuedHashMap<>();
     private final MultiValuedMap<Integer, Integer> outgoingLinkMap = new HashSetValuedHashMap<>();
     private final Map<Integer, WikiAnnotation> annotations = new ConcurrentHashMap<>();
@@ -48,8 +50,7 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
     private final SAXParserFactory saxFactory;
     private int numStripped = 0;
 
-    public WikiLinkAndTermAnnotator(int threadCount, int batchSize, WikiLinkAndTermAnnotatorOptions options) {
-        super(threadCount, batchSize);
+    public WikiLinkAndTermAnnotator(WikiLinkAndTermAnnotatorOptions options) {
         this.options = options;
         saxFactory = SAXParserFactory.newInstance();
         saxFactory.setNamespaceAware(true);
@@ -65,15 +66,59 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
         incomingLinkMap.clear();
     }
 
-    public void annotate(File inputFile, File titleMapFile, File outputFile) throws IOException, ParserConfigurationException, SAXException, XMLStreamException {
+    public void annotate(File inputFile, File titleMapFile, File outputFile) throws Exception {
         reset();
         buildTitleMap(titleMapFile);
-        analyzeTerms(inputFile);
-        analyzeLinks(inputFile);
 
-        LinkPruner pruner = new LinkPruner(incomingLinkMap, outgoingLinkMap, options.minimumIncomingLinks);
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CompletionService<Integer> completionService =
+                new ExecutorCompletionService<>(executorService);
+
+        Vector<Future<Integer>> tasks = new Vector<>();
+
+        tasks.add(completionService.submit(() -> {
+            analyzeTerms(inputFile);
+            return 0;
+        }));
+
+        tasks.add(completionService.submit(() -> {
+            analyzeLinks(inputFile);
+            return 0;
+        }));
+
+        //Wait for futures to finish
+        int completed = 0;
+        boolean errors = false;
+        while (completed < 2 && !errors) {
+            Future<Integer> resultFuture = completionService.take();
+            try {
+                Integer result = resultFuture.get();
+                System.out.println("task completed: " + result);
+                if (result != 0) {
+                    errors = true;
+                }
+                completed++;
+            }
+            catch(Exception e) {
+                errors = true;
+            }
+        }
+
+        if (errors) {
+            tasks.forEach((Future<Integer> future) -> future.cancel(true));
+            System.out.println("errors in threads!");
+            System.exit(1);
+        }
+        tasks.clear();
+        executorService.shutdown();
+
+        System.out.println("(before pruning)");
+        System.out.println("---------------------------------------");
+        System.out.println("Annotations: " + annotations.size());
         System.out.println("Outgoing Links: " + outgoingLinkMap.keySet().size());
         System.out.println("Incoming Links: " + incomingLinkMap.keySet().size());
+        System.out.println("---------------------------------------");
+        LinkPruner pruner = new LinkPruner(incomingLinkMap, outgoingLinkMap, options.minimumIncomingLinks);
         pruner.prune();
         annotations.keySet().retainAll(outgoingLinkMap.keySet());
         for (Integer articleId: annotations.keySet()) {
@@ -82,11 +127,17 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
             annotation.incomingLinks = incomingLinkMap.get(articleId).size();
         }
 
+        System.out.println("(after pruning)");
+        System.out.println("---------------------------------------");
+        System.out.println("Annotations: " + annotations.size());
+        System.out.println("Outgoing Links: " + outgoingLinkMap.keySet().size());
+        System.out.println("Incoming Links: " + incomingLinkMap.keySet().size());
+        System.out.println("---------------------------------------");
+
         //Free up some memory
         outgoingLinkMap.clear();
         incomingLinkMap.clear();
 
-        System.out.println("Annotations: " + annotations.size());
         float totalIncomingLinks = 0;
         float totalOutgoingLinks = 0;
         float totalTerms = 0;
@@ -111,39 +162,27 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
         is.setEncoding("UTF-8");
         saxParser.parse(is, new WikiTitleMapHandler(titleMap));
         reader.close();
-
-        //Resolve all redirects
-        Map<String, String> resolvedTitleMap = new HashMap<>();
-        for (String title: titleMap.keySet()) {
-            String originalTitle = title;
-            while (titleMap.containsKey(title)) {
-                String resolvedTitle = titleMap.get(title);
-                if (title.equals(resolvedTitle)) {
-                    break;
-                } else {
-                    title = resolvedTitle;
-                }
-            }
-            resolvedTitleMap.put(originalTitle, title);
-        }
-        titleMap = resolvedTitleMap;
     }
 
-    protected void analyzeTerms(File strippedFile) throws IOException, SAXException, ParserConfigurationException {
+    protected void analyzeTerms(File strippedFile) throws Exception {
         SAXParser saxParser = saxFactory.newSAXParser();
         Reader reader = BZipFileTools.getFileReader(strippedFile);
         InputSource is = new InputSource(reader);
         is.setEncoding("UTF-8");
-        saxParser.parse(is, new WikiLinAndTermHandler(threadCount, batchSize, options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_TERMS));
+        XmlReadingHandler handler = new WikiTermHandler(12, 1000, options, titleMap, annotations);
+        saxParser.parse(is, handler);
+        handler.close();
         reader.close();
     }
 
-    protected void analyzeLinks(File strippedFile) throws IOException, SAXException, ParserConfigurationException {
+    protected void analyzeLinks(File strippedFile) throws Exception {
         SAXParser saxParser = saxFactory.newSAXParser();
         Reader reader = BZipFileTools.getFileReader(strippedFile);
         InputSource is = new InputSource(reader);
         is.setEncoding("UTF-8");
-        saxParser.parse(is, new WikiLinAndTermHandler(threadCount, batchSize, options, titleMap, annotations, WikiLinAndTermHandler.ANALYSIS_LINKS, incomingLinkMap, outgoingLinkMap));
+        WikiLinkHandler handler = new WikiLinkHandler(12, 1000, options, titleMap, annotations, incomingLinkMap, outgoingLinkMap);
+        saxParser.parse(is, handler);
+        handler.close();
         reader.close();
     }
 
@@ -171,46 +210,40 @@ public class WikiLinkAndTermAnnotator extends ConcurrentXmlWritingHandler {
     }
 
     @Override
-    protected Integer handleDocuments(Vector<Map<String, String>> documents) {
-        for (Map<String, String> document: documents) {
-            String title = document.get("title");
-            String text = document.get("text");
-            int id = Integer.parseInt(document.get("id"));
-            WikiAnnotation annotation = annotations.getOrDefault(id, null);
-            if (annotation != null) {
-                if (annotation.incomingLinks < options.minimumIncomingLinks || annotation.outgoingLinks < options.minimumOutgoingLinks || annotation.terms < options.minimumTerms) {
-                    numStripped++;
-                } else {
-                    try {
-                        writeDocument(id, title, text, annotation);
-                    } catch (XMLStreamException | IOException e) {
-                        e.printStackTrace();
-                        System.exit(1);
-                    }
-                }
-                //Free up some memory
-                annotations.remove(id);
-            } else {
-                numStripped++;
-            }
+    protected void handleDocument(Map<String, String> document) throws SAXException {
+        String title = document.get("title");
+        String text = document.get("text");
+        int id = Integer.parseInt(document.get("id"));
 
-            if (id % 1000 == 0) {
-                System.out.println("annotated article\t[" + numStripped + " | " + this.getDocsRead() + "]");
+        WikiAnnotation annotation = annotations.getOrDefault(id, null);
+        if (annotation != null) {
+            if (annotation.incomingLinks < options.minimumIncomingLinks || annotation.outgoingLinks < options.minimumOutgoingLinks || annotation.terms < options.minimumTerms) {
+                numStripped++;
+            } else {
+                try {
+                    writeDocument(id, title, text, annotation);
+                } catch (XMLStreamException | IOException e) {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
             }
+            //Free up some memory
+            annotations.remove(id);
+        } else {
+            numStripped++;
         }
-        return documents.size();
+
+        this.logMessage("annotated article\t[" + numStripped + " | " + this.getDocsRead() + "]");
     }
 
     public void writeDocument(int id, String title, String text, WikiAnnotation annotation) throws XMLStreamException, IOException {
-        synchronized (xmlWriter) {
-            this.writeStartElement("doc");
-            this.writeElement("id", String.valueOf(id));
-            this.writeElement("title", title);
-            this.writeElement("text", text);
-            this.writeElement("incomingLinks", String.valueOf(annotation.incomingLinks));
-            this.writeElement("outgoingLinks", String.valueOf(annotation.outgoingLinks));
-            this.writeElement("terms", String.valueOf(annotation.terms));
-            this.writeEndElement();
-        }
+        this.writeStartElement("doc");
+        this.writeElement("id", String.valueOf(id));
+        this.writeElement("title", title);
+        this.writeElement("text", text);
+        this.writeElement("incomingLinks", String.valueOf(annotation.incomingLinks));
+        this.writeElement("outgoingLinks", String.valueOf(annotation.outgoingLinks));
+        this.writeElement("terms", String.valueOf(annotation.terms));
+        this.writeEndElement();
     }
 }

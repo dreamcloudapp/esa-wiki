@@ -60,6 +60,8 @@ abstract public class ConcurrentXmlReadingHandler extends XmlReadingHandler {
         if (this.documentQueue.size() > 0) {
             this.processQueue();
         }
+        executorService.shutdown();
+        executorService.awaitTermination(5, TimeUnit.MINUTES);
         super.close();
     }
 }

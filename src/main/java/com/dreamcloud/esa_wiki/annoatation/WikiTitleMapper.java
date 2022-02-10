@@ -13,7 +13,9 @@ import javax.xml.stream.XMLStreamException;
 import java.io.*;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,13 +37,13 @@ import java.util.regex.Pattern;
  */
 class WikiTitleMapper extends XmlWritingHandler {
     ArrayList<Pattern> titleExclusionPatterns;
-    protected Pattern redirectPattern = Pattern.compile("^.*#REDIRECT[^\\[]*\\[\\[([^#]+)(#.+)?]]", Pattern.CASE_INSENSITIVE);    protected File inputFile;
+    protected Pattern redirectPattern = Pattern.compile("^.*#REDIRECT[^\\[]*\\[\\[([^#]+)(#.+)?]]", Pattern.CASE_INSENSITIVE);
     protected final SAXParserFactory saxFactory;
     protected int numRedirects = 0;
+    protected Map<String, String> titleMap = new ConcurrentHashMap<>();
 
-    protected WikiTitleMapper(ArrayList<Pattern> titleExclusionPatterns, File inputFile) {
+    protected WikiTitleMapper(ArrayList<Pattern> titleExclusionPatterns) {
         this.setDocumentTag("page");
-        this.inputFile = inputFile;
         this.titleExclusionPatterns = titleExclusionPatterns;
         saxFactory = SAXParserFactory.newInstance();
         saxFactory.setNamespaceAware(true);
@@ -49,10 +51,33 @@ class WikiTitleMapper extends XmlWritingHandler {
         saxFactory.setXIncludeAware(true);
     }
 
-    public void writeTitles(File outputFile) throws IOException, XMLStreamException, ParserConfigurationException, SAXException {
+    public void mapTitles(File inputFile) throws ParserConfigurationException, IOException, SAXException {
+        this.parse(inputFile);
+
+        //Resolve all redirects
+        Map<String, String> resolvedTitleMap = new HashMap<>();
+        for (String title: titleMap.keySet()) {
+            String originalTitle = title;
+            while (titleMap.containsKey(title)) {
+                String resolvedTitle = titleMap.get(title);
+                if (title.equals(resolvedTitle)) {
+                    break;
+                } else {
+                    title = resolvedTitle;
+                }
+            }
+            resolvedTitleMap.put(originalTitle, title);
+        }
+        titleMap = resolvedTitleMap;
+    }
+
+    public void writeTitles(File outputFile) throws IOException, XMLStreamException {
         this.open(outputFile);
         this.writeDocumentBegin("docs");
-        this.parse();
+        for (String title: titleMap.keySet()) {
+            String redirect = titleMap.get(title);
+            this.writeDocument(title, redirect);
+        }
         this.writeDocumentEnd();
 
         System.out.println("----------------------------------------");
@@ -64,7 +89,7 @@ class WikiTitleMapper extends XmlWritingHandler {
         System.out.println("----------------------------------------");
     }
 
-    protected void parse() throws ParserConfigurationException, SAXException, IOException {
+    protected void parse(File inputFile) throws ParserConfigurationException, SAXException, IOException {
         SAXParser saxParser = saxFactory.newSAXParser();
         Reader reader = BZipFileTools.getFileReader(inputFile);
         InputSource is = new InputSource(reader);
@@ -96,13 +121,7 @@ class WikiTitleMapper extends XmlWritingHandler {
                 }
             }
         }
-        try {
-            this.writeDocument(title, redirect);
-            this.logMessage("processed article\t[" + numRedirects + " | " + getDocsRead() + "]");
-        } catch (XMLStreamException | IOException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+        titleMap.put(title, redirect);
     }
 
     private void writeDocument(String title, String redirect) throws XMLStreamException, IOException {

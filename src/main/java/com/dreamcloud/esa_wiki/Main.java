@@ -171,6 +171,12 @@ public class Main {
                 System.out.println("----------------------------------------");
             }
 
+            else if(cli.hasOption("debug")) {
+                File inputFile = new File(cli.getOptionValue("debug"));
+                WikipediaDebugger debugger = new WikipediaDebugger(inputFile);
+                debugger.analyze();
+            }
+
             else if(!ArrayUtils.tooShort(wikiPreprocessorArgs, 4)) {
                 File inputFile = new File(wikiPreprocessorArgs[0]);
                 File outputFile = new File(wikiPreprocessorArgs[1]);
@@ -199,7 +205,7 @@ public class Main {
                 wikiLinkAnnotatorOptions.minimumTerms = annotationOptions.getMinimumTermCount();
                 wikiLinkAnnotatorOptions.maximumTermCount = annotationOptions.getMaximumTermCount();
                 wikiLinkAnnotatorOptions.analyzer = new EsaAnalyzer(analyzerOptions);
-                try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(12, 1000, wikiLinkAnnotatorOptions)) {
+                try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(wikiLinkAnnotatorOptions)) {
                     annotator.annotate(strippedFile, titleMapFile, outputFile);
                 } catch (Exception e) {
                     e.printStackTrace();

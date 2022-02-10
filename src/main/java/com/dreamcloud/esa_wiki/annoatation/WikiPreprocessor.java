@@ -14,11 +14,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,6 +34,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
     protected Pattern redirectPattern = Pattern.compile("^.*#REDIRECT[^\\[]*\\[\\[([^#]+)(#.+)?]]", Pattern.CASE_INSENSITIVE);
     protected Pattern htmlAttributePattern = Pattern.compile("\\|\\s*[a-zA-Z_-]+\\s*=\\s*[^|]+\\|", Pattern.CASE_INSENSITIVE);
     protected Pattern stubPattern = Pattern.compile("\\{\\{[^}]*([Ss]tub|[Aa]sbox|[Mm]issing [Ii]nformation)[^}]*}}");
+    protected Pattern disambiguationPattern = Pattern.compile("\\{\\{[^}|]*([Dd]isambiguat)[^}]*}}");
     ArrayList<Pattern> titleExclusionPatterns;
     protected final SAXParserFactory saxFactory;
 
@@ -44,8 +42,9 @@ public class WikiPreprocessor extends XmlWritingHandler {
     protected int numRedirects = 0;
     private int docsStrippedByCategory = 0;
     private int numCategories = 0;
-    private Map<String, Set<String>> docsStrippedByRegex = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> docsStrippedByRegex = new ConcurrentHashMap<>();
     protected int numStubs = 0;
+    private int numDisambiguationPages = 0;
 
     public WikiPreprocessor(WikiPreprocessorOptions options) {
         this.setDocumentTag("page");
@@ -63,16 +62,59 @@ public class WikiPreprocessor extends XmlWritingHandler {
     }
 
     public void preprocess(File inputFile, File outputFile, File titleOutputFile) throws Exception {
-        //Create a map of normalized titles
-        try(WikiTitleMapper titleMapper = new WikiTitleMapper(titleExclusionPatterns, inputFile)) {
-            titleMapper.writeTitles(titleOutputFile);
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CompletionService<Integer> completionService =
+                new ExecutorCompletionService<>(executorService);
+
+        Vector<Future<Integer>> tasks = new Vector<>();
+
+        tasks.add(completionService.submit(() -> {
+            //Create a map of normalized titles
+            try(WikiTitleMapper titleMapper = new WikiTitleMapper(titleExclusionPatterns)) {
+                titleMapper.mapTitles(inputFile);
+                titleMapper.writeTitles(titleOutputFile);
+                return 0;
+            } catch (Exception e) {
+                System.out.println("error in title mapping: ");
+                e.printStackTrace();
+                return 1;
+            }
+        }));
+
+        tasks.add(completionService.submit(() -> {
+            try(TemplateMapper mapper = new TemplateMapper(new TemplateResolutionOptions())) {
+                templateMap = mapper.map(inputFile);
+                return 0;
+            } catch (Exception e) {
+                System.out.println("error in title template mapping: ");
+                e.printStackTrace();
+                return 1;
+            }
+        }));
+
+        //Wait for futures to finish
+        int completed = 0;
+        boolean errors = false;
+        while (completed < 2 && !errors) {
+            Future<Integer> resultFuture = completionService.take();
+            try {
+                Integer result = resultFuture.get();
+                System.out.println("task completed: " + result);
+                if (result != 0) {
+                    errors = true;
+                }
+                completed++;
+            }
+            catch(Exception e) {
+                errors = true;
+            }
         }
 
-
-        //Generate a normalized template map
-        try(TemplateMapper mapper = new TemplateMapper(new TemplateResolutionOptions())) {
-            templateMap = mapper.map(inputFile);
+        if (errors) {
+            tasks.forEach((Future<Integer> future) -> future.cancel(true));
         }
+        tasks.clear();
+        executorService.shutdown();
 
 
         //Perform the template substitution
@@ -106,6 +148,7 @@ public class WikiPreprocessor extends XmlWritingHandler {
         System.out.println("Redirects Stripped:\t" + numRedirects);
         System.out.println("Stubs Stripped:\t" + numStubs);
         System.out.println("Categories Stripped:\t" + numCategories);
+        System.out.println("Disambiguations Stripped:\t" + numDisambiguationPages);
 
         int docsStrippedByRegexCount = 0;
         for (Set<String> stripped: docsStrippedByRegex.values()) {
@@ -115,12 +158,6 @@ public class WikiPreprocessor extends XmlWritingHandler {
         System.out.println("----------------------------------------");
         for (String regex: docsStrippedByRegex.keySet()) {
             System.out.println(regex + ":\t" + docsStrippedByRegex.get(regex).size());
-        }
-        System.out.println("----------------------------------------");
-        for (String regex: docsStrippedByRegex.keySet()) {
-            docsStrippedByRegex.get(regex).forEach((String title) -> {
-                System.out.println(regex + "\t->\t" + title);
-            });
         }
         System.out.println("----------------------------------------");
         NumberFormat format = NumberFormat.getPercentInstance();
@@ -175,6 +212,13 @@ public class WikiPreprocessor extends XmlWritingHandler {
             this.docsStripped++;
             return;
         }*/
+
+        matcher = disambiguationPattern.matcher(text);
+        if (matcher.find()) {
+            this.numDisambiguationPages++;
+            this.docsStripped++;
+            return;
+        }
 
         try {
             text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
