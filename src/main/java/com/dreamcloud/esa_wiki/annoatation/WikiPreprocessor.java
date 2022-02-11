@@ -221,10 +221,10 @@ public class WikiPreprocessor extends XmlWritingHandler {
         }
 
         try {
-            text = templateProcessor.substitute(text, title); //todo: why not use normalized title here?
+            String substitutedText = templateProcessor.substitute(text, title);
 
             //Exclude articles in excluded categories
-            for (String articleCategory: categoryAnalyzer.getArticleCategories(text)) {
+            for (String articleCategory: categoryAnalyzer.getArticleCategories(substitutedText)) {
                 if (excludedCategories.contains(articleCategory)) {
                     System.out.println("article " + normalizedTitle + "\t->\t" + articleCategory + " excluded");
                     this.docsStripped++;

@@ -143,7 +143,7 @@ public class ScoreWriter extends XmlReadingHandler {
 
     protected void handleDocument(Map<String, String> xmlFields) throws SAXException {
         WikipediaArticle article = new WikipediaArticle();
-        article.id = this.getDocsRead();
+        article.id = Integer.parseInt(xmlFields.get("id"));
         article.title = xmlFields.get("title");
         article.text = xmlFields.get("text");
         article.incomingLinks = Integer.parseInt(xmlFields.get("incomingLinks"));
