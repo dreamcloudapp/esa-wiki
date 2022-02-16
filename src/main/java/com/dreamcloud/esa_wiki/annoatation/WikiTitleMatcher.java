@@ -16,7 +16,7 @@ class RegexCondition implements TitleCondition {
     }
 
     public boolean matches(String title) {
-        Matcher matcher = pattern.matcher(title);
+        Matcher matcher = pattern.matcher(title.toLowerCase());
         return matcher.find();
     }
 }
@@ -84,7 +84,7 @@ public class WikiTitleMatcher {
     public static WikiTitleMatcher createForTemplateStripping() {
         WikiTitleMatcher matcher = new WikiTitleMatcher();
         matcher.addRegexCondition(
-            Pattern.compile("stub|user[ s]|disambig|copy-?edit|cleanup|page|article|/meta|/doc|category|documentation|cite|css|see below|see at|aka|see above|image|/format|wiki|disputed|please|wrongtitle|color([^a]|$)|font|lang-|time zone|icon|todo|style/|unit of|^template:[.]{1,3}$|warn-|^template:.*template.*$|discussion|usertalk|column|col-| age |did you know|uw-|see also|this is|don't|word|split|styles|^template:[A-Z]+$|citation|str ")
+            Pattern.compile("stub|user[ s]|disambig|chart|copy-?edit|cleanup|page|article|/meta|/doc|category|documentation|cite|css|see below|see at|aka|see above|image|/format|wiki|disputed|please|wrongtitle|color([^a]|$)|font|lang-|time zone|icon|todo|style/|unit of|^template:[.]{1,3}$|warn-|^template:.*template.*$|discussion|usertalk|column|col-| age |did you know|uw-|see also|this is|don't|word|split|styles|^template:[A-Z]+$|citation|str ")
         );
         return matcher;
     }

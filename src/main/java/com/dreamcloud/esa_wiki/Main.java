@@ -13,9 +13,13 @@ import com.dreamcloud.esa_score.analysis.TfIdfStrategyFactory;
 import com.dreamcloud.esa_score.analysis.strategy.TfIdfStrategy;
 import com.dreamcloud.esa_score.cli.FileSystemScoringReader;
 import com.dreamcloud.esa_score.cli.TfIdfOptionsReader;
+import com.dreamcloud.esa_score.fs.TermIndex;
+import com.dreamcloud.esa_score.fs.TermIndexReader;
 import com.dreamcloud.esa_score.score.DocumentNameResolver;
 import com.dreamcloud.esa_wiki.annoatation.*;
 import com.dreamcloud.esa_wiki.annoatation.category.CategoryAnalyzer;
+import com.dreamcloud.esa_wiki.annoatation.debug.ArticleAnalysis;
+import com.dreamcloud.esa_wiki.annoatation.debug.ArticleAnalyzer;
 import com.dreamcloud.esa_wiki.annoatation.debug.ArticleFinder;
 import com.dreamcloud.esa_wiki.annoatation.debug.DebugArticle;
 import com.dreamcloud.esa_wiki.cli.AnnotationOptionsReader;
@@ -26,6 +30,7 @@ import com.dreamcloud.esa_wiki.utility.ArrayUtils;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
 
 import org.apache.commons.cli.*;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.wikipedia.WikipediaTokenizer;
 import org.xml.sax.SAXException;
@@ -36,6 +41,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class Main {
+    private static String ANALYZE_ARTICLE = "analyze-article";
+
     public static void main(String[] args) {
         Options options = new Options();
 
@@ -62,6 +69,11 @@ public class Main {
         Option debugOption = new Option(null, "debug", true, "input.txt / Shows the tokens for a text.");
         debugOption.setRequired(false);
         options.addOption(debugOption);
+
+        Option articleAnalysisOption = new Option(null, ANALYZE_ARTICLE, true, "annotated input file, article title|id");
+        articleAnalysisOption.setRequired(false);
+        articleAnalysisOption.setArgs(3);
+        options.addOption(articleAnalysisOption);
 
         //Annotating
         Option wikiPreprocessorOption = new Option(null, "preprocess", true, "inputFile outputFile titleMapOutputFile / Wiki preprocessing: template resolution, title normalization, article stripping");
@@ -175,6 +187,45 @@ public class Main {
                 File inputFile = new File(cli.getOptionValue("debug"));
                 WikipediaDebugger debugger = new WikipediaDebugger(inputFile);
                 debugger.analyze();
+            }
+
+            else if(cli.hasOption(ANALYZE_ARTICLE)) {
+                File inputFile = new File(cli.getOptionValues(ANALYZE_ARTICLE)[0]);
+                File termIndexFile = new File(cli.getOptionValues(ANALYZE_ARTICLE)[1]);
+
+                String match = cli.getOptionValues(ANALYZE_ARTICLE)[2];
+                int searchId = 0;
+                String searchTitle = null;
+                try {
+                    searchId = Integer.parseInt(match);
+                } catch (NumberFormatException e) {
+                    searchTitle = match;
+                }
+
+                TermIndexReader termIndexReader = new TermIndexReader();
+                termIndexReader.open(termIndexFile);
+                TermIndex termIndex = termIndexReader.readIndex();
+                termIndexReader.close();
+
+                CollectionInfo collectionInfo = new CollectionInfo(termIndex.getDocumentCount(), termIndex.getAverageDocumentLength(), termIndex.getDocumentFrequencies());
+                TfIdfStrategyFactory tfIdfFactory = new TfIdfStrategyFactory();
+                TfIdfStrategy tfIdfStrategy = tfIdfFactory.getStrategy(tfIdfOptions);
+                Analyzer analyzer = new EsaAnalyzer(analyzerOptions);
+                TfIdfAnalyzer tfIdfAnalyzer = new TfIdfAnalyzer(tfIdfStrategy, analyzer, collectionInfo);
+
+                ArticleAnalyzer articleAnalyzer = new ArticleAnalyzer(analyzer, tfIdfAnalyzer);
+                ArticleAnalysis analysis;
+                if (searchId > 0) {
+                    analysis = articleAnalyzer.analyze(inputFile, searchId);
+                } else {
+                    analysis = articleAnalyzer.analyze(inputFile, searchTitle);
+                }
+
+                if (analysis != null) {
+                    analysis.display(collectionInfo);
+                } else {
+                    System.out.println("article not found.");
+                }
             }
 
             else if(!ArrayUtils.tooShort(wikiPreprocessorArgs, 4)) {
