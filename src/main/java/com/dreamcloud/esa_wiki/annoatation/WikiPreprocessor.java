@@ -83,7 +83,8 @@ public class WikiPreprocessor extends XmlWritingHandler {
 
         tasks.add(completionService.submit(() -> {
             try(TemplateMapper mapper = new TemplateMapper(new TemplateResolutionOptions())) {
-                templateMap = mapper.map(inputFile);
+                //templateMap = mapper.map(inputFile);
+                templateMap = new ConcurrentHashMap<>();
                 return 0;
             } catch (Exception e) {
                 System.out.println("error in title template mapping: ");
@@ -221,10 +222,10 @@ public class WikiPreprocessor extends XmlWritingHandler {
         }
 
         try {
-            String substitutedText = templateProcessor.substitute(text, title);
+            text = templateProcessor.substitute(text, title);
 
             //Exclude articles in excluded categories
-            for (String articleCategory: categoryAnalyzer.getArticleCategories(substitutedText)) {
+            for (String articleCategory: categoryAnalyzer.getArticleCategories(text)) {
                 if (excludedCategories.contains(articleCategory)) {
                     System.out.println("article " + normalizedTitle + "\t->\t" + articleCategory + " excluded");
                     this.docsStripped++;

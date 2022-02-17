@@ -4,6 +4,7 @@ import com.dreamcloud.esa_score.analysis.CollectionInfo;
 import com.dreamcloud.esa_score.fs.CollectionWriter;
 import com.dreamcloud.esa_wiki.annoatation.WikipediaArticle;
 import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
+import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -135,6 +136,10 @@ public class ScoreWriter extends XmlReadingHandler {
         if (options.preprocessor != null) {
             wikiText = options.preprocessor.process(wikiText);
         }
+
+        WikiCleanupPreprocessor cleanupPreprocessor = new WikiCleanupPreprocessor();
+        wikiText = cleanupPreprocessor.process(wikiText);
+
         collectionWriter.writeDocumentScores(article.id, options.analyzer.getTfIdfScores(wikiText));
     }
 

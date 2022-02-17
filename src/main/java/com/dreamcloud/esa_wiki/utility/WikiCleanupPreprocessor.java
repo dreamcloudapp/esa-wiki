@@ -1,7 +1,12 @@
 package com.dreamcloud.esa_wiki.utility;
 
 import com.dreamcloud.esa_core.documentPreprocessor.DocumentPreprocessor;
+import com.dreamcloud.esa_wiki.annoatation.linkParser.Link;
+import com.dreamcloud.esa_wiki.annoatation.linkParser.LinkParser;
 
+import java.io.IOException;
+import java.io.PushbackReader;
+import java.io.StringReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,31 +31,66 @@ public class WikiCleanupPreprocessor implements DocumentPreprocessor {
     private final Pattern languageCodePattern = Pattern.compile("\\[\\[[a-z_-]+:[^]]+]]");
     private final Pattern htmlCommentPattern = Pattern.compile("<!--+.*?-->", Pattern.DOTALL);
     private final Pattern htmlEscapePattern = Pattern.compile("&[a-zA-Z_-]+;");
-    private final Pattern fileImageLinkPattern = Pattern.compile("\\[\\[(?:File|Image):.+\\|([^]]+)]]");
+    private final Pattern referenceSectionPattern = Pattern.compile("==References==.+?(==|\\n\\n)", Pattern.DOTALL);
+    private final Pattern sectionTitlePattern = Pattern.compile("^={2,4}.+={2,4}$", Pattern.MULTILINE);
 
     @Override
     public String process(String document) throws Exception {
         if (document == null) {
-            return document;
+            return null;
         }
 
-        //Strip out &amp; HTML symbols
-        Matcher matcher = htmlEscapePattern.matcher(document);
+        //Strip out sections (===See also===) etc.
+        Matcher matcher = referenceSectionPattern.matcher(document);
         document = matcher.replaceAll("");
 
-        //Replace image and file links with their anchors
-        matcher = fileImageLinkPattern.matcher(document);
-        document = matcher.replaceAll("$1");
+        matcher = sectionTitlePattern.matcher(document);
+        document = matcher.replaceAll("");
 
         //Strip out language code links
         matcher = languageCodePattern.matcher(document);
-        document= matcher.replaceAll("");
+        document = matcher.replaceAll("");
+
+        //Cleanup links
+        for (int i=0; i<3; i++) {
+            document = cleanTextLinks(document);
+        }
+
+        //Strip out &amp; HTML symbols
+        matcher = htmlEscapePattern.matcher(document);
+        document = matcher.replaceAll("");
 
         //Strip HTML comments
         matcher = htmlCommentPattern.matcher(document);
         document = matcher.replaceAll("");
 
         return document;
+    }
+
+    private String cleanTextLinks(String text) throws IOException {
+        PushbackReader reader = new PushbackReader(new StringReader(text));
+        LinkParser linkParser = new LinkParser(reader);
+        Link link;
+        while ((link = linkParser.parse()) != null) {
+            String replacement;
+            //good numbers for Pearson!
+            /*if (link.isResource() || link.isNamespaced()) {
+                replacement = link.getAnchor();
+            } else if(link.isSelfLink()) {
+                replacement = "";
+            } else {
+                replacement = link.getTargetArticle() + " " + link.getAnchor();
+            }*/
+
+            //better Spearman numbers
+            if (link.isResource() || link.isNamespaced()) {
+                replacement = "";
+            } else {
+                replacement =  link.getAnchor();
+            }
+            text = text.replaceAll(Pattern.quote(link.getText()), Matcher.quoteReplacement(replacement));
+        }
+        return text;
     }
 
     @Override

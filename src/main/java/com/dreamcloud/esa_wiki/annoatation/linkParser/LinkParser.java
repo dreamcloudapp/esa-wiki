@@ -5,8 +5,10 @@ import java.io.PushbackReader;
 import java.util.ArrayList;
 
 public class LinkParser {
-    public LinkParser() {
+    private final PushbackReader reader;
 
+    public LinkParser(PushbackReader reader) {
+        this.reader = reader;
     }
 
     public boolean isLinkStartValid(int c) {
@@ -25,19 +27,18 @@ public class LinkParser {
         return isLinkStartValid(name.charAt(0));
     }
 
-    public Link parse(PushbackReader reader) throws IOException {
+    public Link parse() throws IOException {
         int bracketsSeen = 0;
         int c;
-        Link link = null;
         while ((c = reader.read()) != -1) {
             if (c == '[') {
                 if (++bracketsSeen == 2) {
                     int peek = reader.read();
                     reader.unread(peek);
                     if (isLinkStartValid(peek)) {
-                        link = parseLink(reader);
+                        Link link = parseLink();
                         if (link != null) {
-                            break;
+                            return link;
                         }
                     }
                     bracketsSeen = 0;
@@ -46,12 +47,12 @@ public class LinkParser {
                 bracketsSeen = 0;
             }
         }
-        return link;
+        return null;
     }
 
-    private Link parseLink(PushbackReader reader) throws IOException {
+    private Link parseLink() throws IOException {
         int depth = 2;
-        StringBuilder linkText = new StringBuilder("{{");
+        StringBuilder linkText = new StringBuilder("[[");
         StringBuilder content = new StringBuilder();
 
         ArrayList<LinkParameter> parameters = new ArrayList<>();
@@ -62,8 +63,6 @@ public class LinkParser {
         String linkTarget = null;
         String linkAnchor = null;
 
-
-        int brackets = 0;
         while (depth > 0) {
             int c = reader.read();
             if (c == -1) {
@@ -73,18 +72,13 @@ public class LinkParser {
 
             switch (c) {
                 case '[':
-                    if (++brackets == 2) {
-                        depth++;
-                        brackets = 0;
-                    }
+                    depth++;
                     content.append((char) c);
                     break;
                 case ']':
-                    if (--brackets == -2) {
-                        depth--;
-                        brackets = 0;
+                    if (depth-- > 2) {
+                        content.append((char) c);
                     }
-                    content.append((char) c);
                     break;
                     //missing break intentional
                 default:
@@ -96,9 +90,7 @@ public class LinkParser {
                                     parameterName = null;
                                 } else {
                                     inParameter = true;
-                                    if (linkTarget == null) {
-                                       linkTarget = content.toString();
-                                    }
+                                    linkTarget = content.toString();
                                 }
                                 content = new StringBuilder();
                                 break;

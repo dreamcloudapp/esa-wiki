@@ -3,6 +3,7 @@ package com.dreamcloud.esa_wiki.annoatation.handler;
 import com.dreamcloud.esa_wiki.annoatation.WikiAnnotation;
 import com.dreamcloud.esa_wiki.annoatation.WikiLinkAndTermAnnotatorOptions;
 import com.dreamcloud.esa_wiki.annoatation.handler.ConcurrentXmlReadingHandler;
+import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 
@@ -29,6 +30,8 @@ public class WikiTermHandler extends ConcurrentXmlReadingHandler {
            for (Map<String, String> document: documents) {
                String title = document.get("title");
                String text = document.get("text");
+               WikiCleanupPreprocessor cleanupPreprocessor = new WikiCleanupPreprocessor();
+               text = cleanupPreprocessor.process(text);
                int titleId = Integer.parseInt(document.get("id"));
 
                if (!logged) {

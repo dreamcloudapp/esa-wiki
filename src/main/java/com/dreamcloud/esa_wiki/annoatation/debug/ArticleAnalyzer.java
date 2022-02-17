@@ -5,6 +5,7 @@ import com.dreamcloud.esa_score.score.TfIdfScore;
 import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
 import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
+import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -78,6 +79,9 @@ public class ArticleAnalyzer extends XmlReadingHandler {
             analysis.linkCount = Integer.parseInt(xmlFields.get("outgoingLinks"));
             analysis.termCount = Integer.parseInt(xmlFields.get("terms"));
             try {
+                WikiCleanupPreprocessor cleanupPreprocessor = new WikiCleanupPreprocessor();
+                text = cleanupPreprocessor.process(text);
+                analysis.cleanText = text;
                 TfIdfScore[] scores = scoreAnalyzer.getTfIdfScores(text);
                 Arrays.sort(scores, (TfIdfScore s1, TfIdfScore s2) -> Double.compare(s2.getScore(), s1.getScore()));
                 analysis.tfIdfScores.addAll(Arrays.asList(scores));

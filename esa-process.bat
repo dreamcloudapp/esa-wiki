@@ -6,12 +6,12 @@ rem call ./esa.bat --preprocess %1 %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\
 
 rem call ./esa.bat --write-id-titles %2\preprocessed.xml.bz2 %2\id-titles.txt
 
-rem call ./esa.bat --count-links-and-terms %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\annotated.xml.bz2 --min-in-links 20 --min-out-links 20 --min-terms 200 --id-titles %2\id-titles.txt
+rem call ./esa.bat --count-links-and-terms %2\preprocessed.xml.bz2 %2\titles.xml.bz2 %2\annotated.xml.bz2 --min-in-links 5 --min-out-links 5 --min-terms 100 --id-titles %2\id-titles.txt
 
 rem call ./esa.bat --repeat-content %2\terms.xml.bz2 %2\repeated.xml.bz2 --repeat-title 4 --repeat-link 2
 
 rem call ./esa.bat --write-rare-words %2\annotated.xml.bz2 %2\rare-words.txt 3 --filter classic ascii lower singular --stop-words en-default --min-word-length 3
 
-call .\esa.bat --index %2\annotated.xml.bz2 --threads 12 --batch-size 1000 --filter classic ascii lower singular stemmer --stemmer-depth 3 --stop-words en-default %2\rare-words.txt --min-word-length 3 --tfidf-mode b:nbn --bm25-delta 0.5 --min-in-links 20 --min-out-links 20 --min-terms 400
+rem call .\esa.bat --index %2\annotated.xml.bz2 --threads 12 --batch-size 1000 --filter classic ascii lower singular stemmer --stemmer-depth 3 --stop-words en-default %2\rare-words.txt --min-word-length 3 --tfidf-mode b:nbn --bm25-delta 0.5
 
 rem call ./esa.bat --article-stats %2\annotated.xml.bz2 --filter classic ascii lower singular stemmer --stemmer-depth 3 --stop-words en-default

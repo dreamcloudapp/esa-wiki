@@ -12,6 +12,7 @@ public class ArticleAnalysis {
     public int linkCount;
     public int termCount;
     public String sourceText;
+    public String cleanText;
     public String analyzedText;
     public Vector<TfIdfScore> tfIdfScores = new Vector<>();
 
@@ -29,9 +30,13 @@ public class ArticleAnalysis {
         System.out.println(sourceText);
         System.out.println("</source text>");
         System.out.println("------");
-        System.out.println("<analyzed text>");
+        System.out.println("<clean text>");
+        System.out.println(cleanText);
+        System.out.println("</clean text>");
+        System.out.println("------");
+        System.out.println("<analyzed terms>");
         System.out.println(analyzedText);
-        System.out.println("</analyzed text>");
+        System.out.println("</analyzed terms>");
         System.out.println("------");
         System.out.println("<scores>");
         for(TfIdfScore score: tfIdfScores) {
