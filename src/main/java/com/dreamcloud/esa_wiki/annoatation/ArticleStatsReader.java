@@ -1,7 +1,7 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;

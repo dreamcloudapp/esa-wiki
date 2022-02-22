@@ -1,8 +1,8 @@
 package com.dreamcloud.esa_wiki.annoatation.category;
 
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 import com.dreamcloud.esa_wiki.annoatation.TemplateProcessor;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;

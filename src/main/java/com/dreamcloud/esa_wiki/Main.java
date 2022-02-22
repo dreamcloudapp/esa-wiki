@@ -91,9 +91,8 @@ public class Main {
         idTitlesOption.setArgs(1);
         options.addOption(idTitlesOption);
 
-        Option linkCountOption = new Option(null, "count-links-and-terms", true, "wikiInputFile titleMapFile outputFile / Creates an annotated XML file with link counts.");
+        Option linkCountOption = new Option(null, "count-links-and-terms", true, "index dir / Creates an annotated XML file with link counts.");
         linkCountOption.setRequired(false);
-        linkCountOption.setArgs(3);
         options.addOption(linkCountOption);
 
         Option repeatContentOption = new Option(null, "repeat-content", true, "inputFile outputFile / Repeats titles and links to weight them more highly.");
@@ -157,7 +156,7 @@ public class Main {
             String[] wikiPreprocessorArgs = cli.getOptionValues("preprocess");
             String[] writeIdTitlesArgs = cli.getOptionValues("write-id-titles");
             String[] findArticleArgs = cli.getOptionValues("find-article");
-            String[] countLinkArgs = cli.getOptionValues("count-links-and-terms");
+            String countLinkIndexDir = cli.getOptionValue("count-links-and-terms");
             String[] repeatContentArgs = cli.getOptionValues("repeat-content");
             String[] writeRareWordArgs = cli.getOptionValues("write-rare-words");
 
@@ -240,16 +239,13 @@ public class Main {
                 }
             }
 
-            else if (!ArrayUtils.tooShort(countLinkArgs, 3)) {
+            else if (!StringUtils.empty(countLinkIndexDir)) {
                 if (!StringUtils.empty(idTitles)) {
                     DocumentNameResolver.loadFile(new File(idTitles));
                 } else {
                     throw new IllegalArgumentException("The --id-titles file must be specified during link and term counting.");
                 }
 
-                File strippedFile = new File(countLinkArgs[0]);
-                File titleMapFile = new File(countLinkArgs[1]);
-                File outputFile = new File(countLinkArgs[2]);
                 WikiLinkAndTermAnnotatorOptions wikiLinkAnnotatorOptions = new WikiLinkAndTermAnnotatorOptions();
                 wikiLinkAnnotatorOptions.minimumIncomingLinks = annotationOptions.getMinimumIncomingLinks();
                 wikiLinkAnnotatorOptions.minimumOutgoingLinks = annotationOptions.getMinimumOutgoingLinks();
@@ -257,7 +253,7 @@ public class Main {
                 wikiLinkAnnotatorOptions.maximumTermCount = annotationOptions.getMaximumTermCount();
                 wikiLinkAnnotatorOptions.analyzer = new EsaAnalyzer(analyzerOptions);
                 try(WikiLinkAndTermAnnotator annotator = new WikiLinkAndTermAnnotator(wikiLinkAnnotatorOptions)) {
-                    annotator.annotate(strippedFile, titleMapFile, outputFile);
+                    annotator.annotate(new File(countLinkIndexDir));
                 } catch (Exception e) {
                     e.printStackTrace();
                     System.exit(1);
@@ -295,7 +291,7 @@ public class Main {
                 File inputFile = new File(writeRareWordArgs[0]);
                 File outputFile = new File(writeRareWordArgs[1]);
                 int rareWordThreshold = Integer.parseInt(writeRareWordArgs[2]);
-                try(RareWordDictionary termCountMapper = new RareWordDictionary(new EsaAnalyzer(analyzerOptions), rareWordThreshold)) {
+                try(RareWordDictionary termCountMapper = new RareWordDictionary(new EsaAnalyzer(analyzerOptions), rareWordThreshold, null)) {
                     termCountMapper.mapToXml(inputFile, outputFile);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -325,9 +321,9 @@ public class Main {
             else if(cli.hasOption("index")) {
                 System.out.println("Indexing...");
                 File wikipediaFile = new File(cli.getOptionValue("index"));
-                RareWordDictionary rareWordDictionary = new RareWordDictionary(new EsaAnalyzer(analyzerOptions), 0);
+                RareWordDictionary rareWordDictionary = new RareWordDictionary(new EsaAnalyzer(analyzerOptions), 0, annotationOptions);
                 rareWordDictionary.parse(wikipediaFile);
-                CollectionInfo collectionInfo = new CollectionInfo(rareWordDictionary.getDocsRead(), rareWordDictionary.getAverageDocumentLength(), rareWordDictionary.getDocumentFrequencies());
+                CollectionInfo collectionInfo = new CollectionInfo(rareWordDictionary.getDocsProcessed(), rareWordDictionary.getAverageDocumentLength(), rareWordDictionary.getDocumentFrequencies());
 
                 TfIdfStrategyFactory tfIdfFactory = new TfIdfStrategyFactory();
                 TfIdfStrategy tfIdfStrategy = tfIdfFactory.getStrategy(tfIdfOptions);

@@ -1,8 +1,9 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 

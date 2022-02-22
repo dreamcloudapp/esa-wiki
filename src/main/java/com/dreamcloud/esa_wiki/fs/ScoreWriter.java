@@ -1,9 +1,11 @@
 package com.dreamcloud.esa_wiki.fs;
 
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 import com.dreamcloud.esa_score.analysis.CollectionInfo;
 import com.dreamcloud.esa_score.fs.CollectionWriter;
+import com.dreamcloud.esa_score.score.TfIdfScore;
 import com.dreamcloud.esa_wiki.annoatation.WikipediaArticle;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
 import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -15,10 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class ScoreWriter extends XmlReadingHandler {
@@ -140,7 +139,8 @@ public class ScoreWriter extends XmlReadingHandler {
         WikiCleanupPreprocessor cleanupPreprocessor = new WikiCleanupPreprocessor();
         wikiText = cleanupPreprocessor.process(wikiText);
 
-        collectionWriter.writeDocumentScores(article.id, options.analyzer.getTfIdfScores(wikiText));
+        TfIdfScore[] scores = options.analyzer.getTfIdfScores(wikiText);
+        collectionWriter.writeDocumentScores(article.id, scores);
     }
 
     public void close() throws IOException {

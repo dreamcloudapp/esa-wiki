@@ -1,8 +1,8 @@
 package com.dreamcloud.esa_wiki.annoatation;
 
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-
 import java.util.Map;
+
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 
 public class WikiTitleMapHandler extends XmlReadingHandler {
     protected Map<String, String> titleMap;

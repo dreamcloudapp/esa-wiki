@@ -1,9 +1,9 @@
 package com.dreamcloud.esa_wiki.annoatation.debug;
 
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 import com.dreamcloud.esa_score.analysis.TfIdfAnalyzer;
 import com.dreamcloud.esa_score.score.TfIdfScore;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import com.dreamcloud.esa_wiki.utility.StringUtils;
 import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
 import org.apache.lucene.analysis.Analyzer;

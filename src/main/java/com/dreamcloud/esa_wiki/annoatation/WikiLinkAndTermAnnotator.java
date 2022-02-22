@@ -2,9 +2,10 @@ package com.dreamcloud.esa_wiki.annoatation;
 
 import com.dreamcloud.esa_wiki.annoatation.handler.WikiLinkHandler;
 import com.dreamcloud.esa_wiki.annoatation.handler.WikiTermHandler;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlWritingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
+import com.dreamcloud.esa_core.xml.XmlWritingHandler;
+
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.xml.sax.InputSource;
@@ -18,8 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.text.NumberFormat;
-import java.util.Map;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.*;
 
 /**
@@ -66,8 +66,12 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         incomingLinkMap.clear();
     }
 
-    public void annotate(File inputFile, File titleMapFile, File outputFile) throws Exception {
+    public void annotate(File inputDirectory) throws Exception {
         reset();
+        File inputFile = new File(inputDirectory.getAbsolutePath() + "/preprocessed.xml.bz2");
+        File titleMapFile = new File(inputDirectory.getAbsolutePath() + "/titles.xml.bz2");
+        File outputFile = new File(inputDirectory.getAbsolutePath() + "/annotated.xml.bz2");
+        File incomingLinkFile =new File(inputDirectory.getAbsolutePath() + "/link-map.xml.bz2");
         buildTitleMap(titleMapFile);
 
         ExecutorService executorService = Executors.newFixedThreadPool(2);
@@ -136,6 +140,11 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
 
         //Free up some memory
         outgoingLinkMap.clear();
+
+        //Write all of the incoming links
+        this.writeIncomingLinkXml(incomingLinkMap, incomingLinkFile);
+
+        //Free up the rest
         incomingLinkMap.clear();
 
         float totalIncomingLinks = 0;
@@ -186,7 +195,7 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         reader.close();
     }
 
-    protected void writeAnnotatedXml(File strippedFile, File outputFile) throws IOException, ParserConfigurationException, SAXException, XMLStreamException {
+    protected void writeAnnotatedXml(File strippedFile, File outputFile) throws Exception {
         SAXParser saxParser = saxFactory.newSAXParser();
         Reader reader = BZipFileTools.getFileReader(strippedFile);
         InputSource is = new InputSource(reader);
@@ -197,6 +206,7 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         saxParser.parse(is, this);
         reader.close();
         this.writeDocumentEnd();
+        this.close();
 
         System.out.println("Link Annotation Stats:");
         System.out.println("---------------------------------------");
@@ -207,6 +217,24 @@ public class WikiLinkAndTermAnnotator extends XmlWritingHandler {
         format.setMinimumFractionDigits(1);
         System.out.println("Skip Rate:\t" + format.format((double) this.numStripped / (double) this.getDocsRead()));
         System.out.println("---------------------------------------");
+    }
+
+    private void writeIncomingLinkXml(MultiValuedMap<Integer, Integer> incomingLinkMap, File incomingLinkFile) throws Exception {
+        this.open(incomingLinkFile);
+        this.writeDocumentBegin("docs");
+        for (Integer articleId: incomingLinkMap.keySet()) {
+            Collection<Integer> outgoingArticleIds = incomingLinkMap.get(articleId);
+            this.writeStartElement("doc");
+            this.writeElement("id", String.valueOf(articleId));
+            List<String> outgoingArticles = new ArrayList<>();
+            for (Integer outgoingArticleId: outgoingArticleIds) {
+                outgoingArticles.add(String.valueOf(outgoingArticleId));
+            }
+            this.writeElement("incomingLinks", String.join(",", outgoingArticles));
+            this.writeEndElement();
+        }
+        this.writeDocumentEnd();
+        this.close();
     }
 
     @Override

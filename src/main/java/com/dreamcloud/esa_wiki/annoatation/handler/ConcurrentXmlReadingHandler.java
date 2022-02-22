@@ -2,6 +2,8 @@ package com.dreamcloud.esa_wiki.annoatation.handler;
 
 import org.xml.sax.SAXException;
 
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
+
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Vector;

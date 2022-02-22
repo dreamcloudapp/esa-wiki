@@ -2,8 +2,8 @@ package com.dreamcloud.esa_wiki.annoatation.handler;
 
 import com.dreamcloud.esa_wiki.annoatation.WikiAnnotation;
 import com.dreamcloud.esa_wiki.annoatation.WikiLinkAndTermAnnotatorOptions;
-import com.dreamcloud.esa_wiki.annoatation.handler.ConcurrentXmlReadingHandler;
 import com.dreamcloud.esa_wiki.utility.WikiCleanupPreprocessor;
+
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 

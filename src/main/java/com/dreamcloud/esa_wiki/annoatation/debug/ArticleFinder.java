@@ -1,9 +1,10 @@
 package com.dreamcloud.esa_wiki.annoatation.debug;
 
-import com.dreamcloud.esa_wiki.annoatation.handler.XmlReadingHandler;
-import com.dreamcloud.esa_wiki.fs.BZipFileTools;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+
+import com.dreamcloud.esa_core.xml.BZipFileTools;
+import com.dreamcloud.esa_core.xml.XmlReadingHandler;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
@@ -11,7 +12,6 @@ import javax.xml.parsers.SAXParserFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Locale;
 import java.util.Map;
 
 /**
