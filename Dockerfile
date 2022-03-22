@@ -26,10 +26,8 @@ WORKDIR /app
 #copy the fat JAR as this is all we really need atm
 RUN mkdir /app/target
 COPY --from=maven_build /app/target/esa-wiki-1.0-jar-with-dependencies.jar /app/target
-COPY esa.bat /app
 COPY esa.sh /app
 COPY esa-process.sh /app
-COPY esa-process.bat /app
 RUN mkdir /app/wiki
 RUN mkdir /app/index
 
